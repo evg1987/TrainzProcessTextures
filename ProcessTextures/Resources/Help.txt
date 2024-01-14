@@ -1,0 +1,10 @@
+Example:
+ProcessTextures -in "c:\trainz\content\UP 6896-6942" -out "c:\trainz\UP 6896-6942\processed"
+ProcessTextures -in "c:\trainz\content\UP 6896-6942"
+ProcessTextures
+
+-in   Input directory (raw textures)
+-out  Output directory (for processed textures)
+
+If -in parameters is omitted - current directory is used
+If -out parameter is omitted - input directory is used

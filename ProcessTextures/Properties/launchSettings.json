@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ProcessTextures": {
+      "commandName": "Project",
+      "commandLineArgs": "-in g:\\Trainz\\NewTask_04\\Textures\\1 -out g:\\Trainz\\NewTask_04\\Textures\\Png\\1"
+    }
+  }
+}

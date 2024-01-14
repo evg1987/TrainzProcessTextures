@@ -1,7 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
-using ImageMagick;
+//using ImageMagick;
 using ProcessTextures.Properties;
+using ProcessTextures.ImageProcessors;
 
 namespace ProcessTextures
 {
@@ -23,6 +24,8 @@ namespace ProcessTextures
         const int RESULT_OK = 0;
         const int RESULT_BadArguments = 1;
         const int RESULT_MissingInputDirectory = 2;
+
+        static IImageProcessor imageProcessor;
 
         // entry point
         static int Main(string[] args)
@@ -83,8 +86,10 @@ namespace ProcessTextures
                 Console.WriteLine($"ERROR: Missing input directory ({parameters.InputDirectory})");
                 return RESULT_MissingInputDirectory;
             }
-            
-            MagickNET.Initialize();
+
+            // create image processor
+            imageProcessor = new ImageMagickProcessor();
+            imageProcessor.Initialize();
 
             var stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -225,12 +230,7 @@ namespace ProcessTextures
             };
 
             string outputPath = Path.Combine(parameters.OutputDirectory, outputFileName.ToString());
-            using (var imageAlbedo = new MagickImage(fullPath))
-            {
-                imageAlbedo.AutoOrient();
-                imageAlbedo.Write(outputPath, MagickFormat.Png32);
-                return true;
-            }
+            return imageProcessor.ConvertToPng(fullPath, outputPath);
         }
 
         /// <summary>
@@ -269,9 +269,7 @@ namespace ProcessTextures
             }
 
             // check image sizes
-            var infoAlbedo = new MagickImageInfo(fullPathAlbedo);
-            var infoParameter = new MagickImageInfo(fullPathParameter);
-            if (infoAlbedo.Width != infoParameter.Width || infoAlbedo.Height != infoParameter.Height)
+            if (!imageProcessor.CheckImageSizes(fullPathAlbedo, fullPathParameter))
             {
                 Console.WriteLine($"ERROR: Image size mismatch. Ensure that albedo and parameter images have same size ({textureBundle.Albedo}, {textureBundle.Parameter})");
                 return false;
@@ -301,54 +299,7 @@ namespace ProcessTextures
             }
 
             // process images
-            using (var imageAlbedo = new MagickImage(fullPathAlbedo))
-            using (var imageParameter = new MagickImage(fullPathParameter))
-            using (var imageNormal = new MagickImage(fullPathNormal))
-            {
-                Console.WriteLine($"PROCESSING {textureBundle.Albedo.Name}");
-
-                if (ProcessImages(imageAlbedo, imageParameter))
-                {
-                    imageAlbedo.AutoOrient();
-                    imageAlbedo.Write(outputPathAlbedo, MagickFormat.Png32);
-
-                    imageParameter.AutoOrient();
-                    imageParameter.Write(outputPathParameter, MagickFormat.Png32);
-
-                    imageNormal.AutoOrient();
-                    imageNormal.Write(outputPathNormal, MagickFormat.Png32);
-
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Modify images
-        /// </summary>
-        static private bool ProcessImages(MagickImage imageAlbedo, MagickImage imageParameter)
-        {
-            imageAlbedo.BackgroundColor = MagickColors.Black;
-            imageAlbedo.Sharpen();
-
-            // multiply by parameter's blue channel (AO)
-            using (var alpha = (MagickImage)imageAlbedo.Separate(Channels.Alpha).First())
-            using (var blue = (MagickImage)imageParameter.Separate(Channels.Blue).First())
-            {
-                if (!imageAlbedo.IsOpaque)
-                {
-                    blue.Composite(alpha, CompositeOperator.Multiply, Channels.RGB);
-                }
-
-                blue.BackgroundColor = MagickColors.Black;
-                imageAlbedo.Composite(blue, CompositeOperator.Multiply, Channels.RGB);
-
-                return true;
-            }
+            return imageProcessor.ProcessImages(fullPathAlbedo, fullPathParameter, fullPathNormal, outputPathAlbedo, outputPathParameter, outputPathNormal);
         }
     }
 }
